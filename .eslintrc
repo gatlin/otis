@@ -1,0 +1,19 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "ignorePatterns": ["dist/**/*","test/**/*"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "quotes": ["error", "double"],
+    "indent": ["error", 2],
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": "error"
+  }
+}
