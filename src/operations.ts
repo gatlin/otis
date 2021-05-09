@@ -840,6 +840,7 @@ class Put implements Operation {
     d[this.key] = this.value;
     return obj(d);
   }
+  // eslint-disable-next-line
   public rebase(other: Operation): [Operation,Operation] | null {
     return null;
   }
@@ -1046,7 +1047,7 @@ class ObjectApply implements Operation {
     const __value: unknown = out(value);
     const _value: { [k:string]: Value } = __value as { [k:string]: Value };
     const d: Partial<typeof _value> = {};
-    for (let k in _value) {
+    for (const k in _value) {
       d[k] = _value[k];
     }
     d[this.key] = this.op.apply(d[this.key] as Value);
