@@ -57,7 +57,7 @@ const represent = (datum: unknown): Value => {
   if ("object" === typeof datum) {
     if (null === datum) { return atom(null); }
     else if (Array.isArray(datum))
-      { return arr(datum.map(represent)); }
+    { return arr(datum.map(represent)); }
     else {
       const mutated: { [key:string]: Value } = {};
       for (const [k,v] of Object.entries(datum as { [key:string]: unknown }))

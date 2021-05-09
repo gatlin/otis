@@ -5,7 +5,7 @@ import {
   represent
 } from "./value";
 
-import { cmp, out, concat2, concat3, concat4, map_index, elem, unelem } from "./util";
+import { cmp, out, concat3, concat4, map_index, elem, unelem } from "./util";
 import deepEqual from "deep-equal";
 
 interface Operation {
@@ -61,7 +61,7 @@ class List implements Operation {
   }
 
   public invert(): Operation {
-    let new_ops = [];
+    const new_ops = [];
     for (let i = this.ops.length - 1; i >= 0; i--) {
       new_ops.push(this.ops[i].invert());
     }
@@ -84,7 +84,7 @@ class List implements Operation {
       }
       return new List(this.ops.concat(other.ops));
     }
-    let new_ops = this.ops.slice();
+    const new_ops = this.ops.slice();
     new_ops.push(other);
     return new List(new_ops);
   }
@@ -93,7 +93,7 @@ class List implements Operation {
     if (0 === this.ops.length) {
       return new NoOp();
     }
-    let new_ops: Operation[] = [];
+    const new_ops: Operation[] = [];
     for (let i = 0; i < this.ops.length; i++) {
       let op: Operation = this.ops[i];
       if (op instanceof NoOp) {
@@ -105,7 +105,7 @@ class List implements Operation {
       }
       else {
         for (let j = new_ops.length - 1; j >= 0; j--) {
-          let c = new_ops[j].compose(op);
+          const c = new_ops[j].compose(op);
           if (c) {
             if (c instanceof NoOp) {
               new_ops.splice(j, 1);
@@ -116,8 +116,8 @@ class List implements Operation {
           }
           else {
             if (j > 0) {
-              let r1 = op.rebase(new_ops[j].invert());
-              let r2 = new_ops[j].rebase(op);
+              const r1 = op.rebase(new_ops[j].invert());
+              const r2 = new_ops[j].rebase(op);
               if (null !== r1 && null !== r2) {
                 op = r1[0];
                 new_ops[j] = r2[1];
@@ -508,19 +508,19 @@ class Move implements Operation {
     const _value: string | Value[] = __value as (string | Value[]);
     if (null === _value) { throw new Error ("shut up"); }
     if (this.pos < this.new_pos) {
-      let item1 : string | Value[] = _value.slice(0, this.pos);
-      let item2 : typeof item1 = _value.slice(this.pos + this.count, this.new_pos);
-      let item3_a : typeof item2 = _value.slice(this.pos, this.pos + this.count);
-      let item3_b : typeof item3_a = _value.slice(this.new_pos);
-      let catted: typeof item1 = concat4(item1,item2,item3_a,item3_b);
+      const item1 : string | Value[] = _value.slice(0, this.pos);
+      const item2 : typeof item1 = _value.slice(this.pos + this.count, this.new_pos);
+      const item3_a : typeof item2 = _value.slice(this.pos, this.pos + this.count);
+      const item3_b : typeof item3_a = _value.slice(this.new_pos);
+      const catted: typeof item1 = concat4(item1,item2,item3_a,item3_b);
       return ("string" === typeof catted ? atom(catted) : arr(catted));
     }
     else {
-      let item1: string | Value[] = _value.slice(0, this.new_pos);
-      let item2: typeof item1 = _value.slice(this.pos, this.pos + this.count);
-      let item3: typeof item2 = _value.slice(this.new_pos, this.pos);
-      let item4: typeof item3 = _value.slice(this.pos + this.count);
-      let catted: typeof item1 = concat4(item1,item2,item3,item4);
+      const item1: string | Value[] = _value.slice(0, this.new_pos);
+      const item2: typeof item1 = _value.slice(this.pos, this.pos + this.count);
+      const item3: typeof item2 = _value.slice(this.new_pos, this.pos);
+      const item4: typeof item3 = _value.slice(this.pos + this.count);
+      const catted: typeof item1 = concat4(item1,item2,item3,item4);
       return ("string" === typeof catted ? atom(catted) : arr(catted));
     }
   }
@@ -609,6 +609,7 @@ class Set implements Operation {
     public readonly new_value: Value
   ) {}
 
+  // eslint-disable-next-line
   public apply(value: Value): Value {
     return this.new_value;
   }
@@ -732,7 +733,7 @@ class ArrayApply implements Operation {
             other.old_value.slice(0, this.pos - other.pos),
             unelem(this.invert().apply(elem(
               other.old_value, this.pos - other.pos)),
-                   other.old_value),
+            other.old_value),
             other.old_value.slice(this.pos - other.pos + 1)),
           other.new_value
         ).simplify();
