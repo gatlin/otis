@@ -11,7 +11,8 @@ import {
   Remove,
   Set,
   Rename,
-  ObjectApply
+  ObjectApply,
+  List
 } from "../src/operations";
 import { Value, represent, atom } from "../src/value";
 
@@ -194,6 +195,28 @@ test("object apply", (t) => {
   const v: Value = represent({ a: "hello" });
   const ap = new ObjectApply("a", new Insert(5, ", world!"));
   t.same(ap.apply(v), { a: "hello, world!"});
+  t.end();
+});
+
+test("list", (t) => {
+  const v: Value = represent([ { a: 1 }, { a: 2 } ]);
+  const op = new List([
+    new ArrayApply(
+      0,
+      new ObjectApply(
+        "a",
+        new Set(1, atom(true))
+      )
+    ),
+    new ArrayApply(
+      1,
+      new Put("b", atom(false))
+    )
+  ]).simplify();
+  t.same(op.apply(v), [
+    { a: true },
+    { a: 2, b: false }
+  ]);
   t.end();
 });
 
