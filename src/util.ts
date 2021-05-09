@@ -192,6 +192,14 @@ function unelem(elem: any, seq : any ): any {
   }
 }
 
+function shallow_clone(doc: any): any {
+  const d: any = {};
+  for (let k in doc) {
+    d[k] = doc[k];
+  }
+  return d;
+}
+
 export {
   _,
   Algebra,
@@ -207,5 +215,6 @@ export {
   concat4,
   map_index,
   elem,
-  unelem
+  unelem,
+  shallow_clone
 };

@@ -1,11 +1,12 @@
 import {
   Value,
   arr,
+  obj,
   atom,
   represent
 } from "./value";
 
-import { cmp, out, concat3, concat4, map_index, elem, unelem } from "./util";
+import { cmp, out, concat3, concat4, map_index, elem, unelem, shallow_clone } from "./util";
 import deepEqual from "deep-equal";
 
 interface Operation {
@@ -606,12 +607,12 @@ class Move implements Operation {
 class Set implements Operation {
   constructor(
     public readonly old_value: Value,
-    public readonly new_value: Value
+    public readonly new_value?: Value
   ) {}
 
   // eslint-disable-next-line
   public apply(value: Value): Value {
-    return this.new_value;
+    return this.new_value as Value;
   }
 
   public rebase(other: Operation): [Operation,Operation] | null {
@@ -625,7 +626,7 @@ class Set implements Operation {
         return [
           new NoOp(),
           new Set(
-            this.new_value,
+            this.new_value as Value,
             other.new_value
           )
         ];
@@ -637,12 +638,12 @@ class Set implements Operation {
   public compose(other: Operation): Operation | null {
     return new Set(
       this.old_value,
-      other.apply(this.new_value)
+      other.apply(this.new_value as Value)
     ).simplify();
   }
 
   public invert(): Operation {
-    return new Set(this.new_value, this.old_value);
+    return new Set(this.new_value as Value, this.old_value);
   }
 
   public simplify(): Operation {
@@ -819,6 +820,291 @@ class Map implements Operation {
   }
 }
 
+class Put implements Operation {
+  constructor(
+    public readonly key: string,
+    public readonly value: Value
+  ) {}
+
+  public apply(value: Value): Value {
+    const __value: unknown = out(value);
+    const _value: { [k:string]: Value } = __value as { [k:string]: Value };
+    const d: typeof _value = shallow_clone(_value);
+    d[this.key] = this.value;
+    return obj(d);
+  }
+  public rebase(other: Operation): [Operation,Operation] | null {
+    return null;
+  }
+  public invert(): Operation {
+    return new Remove(this.key, this.value);
+  }
+
+  public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) {
+      return this;
+    }
+    if (other instanceof Set) {
+      return new Set(
+        this.invert().apply(
+          other.old_value),
+        other.new_value).simplify();
+    }
+    if (other instanceof Remove) {
+      if (this.key === other.key) {
+        return new NoOp();
+      }
+    }
+    if (other instanceof Rename) {
+      if (this.key === other.old_key) {
+        return new Put(other.new_key, this.value);
+      }
+    }
+    if (other instanceof ObjectApply) {
+      if (this.key === other.key) {
+        return new Put(
+          this.key,
+          other.op.apply(this.value)
+        );
+      }
+    }
+    return null;
+  }
+  public simplify(): Operation {
+    return this;
+  }
+}
+
+class Remove implements Operation {
+  constructor(
+    public readonly key: string,
+    public readonly old_value: Value
+  ) {}
+
+  public apply(value: Value): Value {
+    const __value: unknown = out(value);
+    const _value: { [k:string]: Value } = __value as { [k:string]: Value };
+    const d: typeof _value = shallow_clone(_value);
+    delete d[this.key];
+    return obj(d);
+  }
+
+  public simplify(): Operation {
+    return this;
+  }
+
+  public invert(): Operation {
+    return new Put(this.key, this.old_value);
+  }
+
+  public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) { return this; }
+    if (other instanceof Set) {
+      return new Set(
+        this.invert().apply(
+          other.old_value
+        ),
+        other.new_value
+      ).simplify();
+    }
+    if (other instanceof Put) {
+      if (this.key === other.key) {
+        return new ObjectApply(this.key, new Set(other.value));
+      }
+    }
+    return null;
+  }
+
+  public rebase(other: Operation): [Operation, Operation] | null {
+    if (other instanceof NoOp) { return [this, other]; }
+    if (other instanceof Remove) {
+      if (this.key === other.key) {
+        return [ new NoOp(), new NoOp() ];
+      }
+      return [this, other];
+    }
+    if (other instanceof Rename) {
+      if (this.key === other.old_key) {
+        return [
+          new Remove(other.new_key, this.old_value),
+          new NoOp()
+        ];
+      }
+      return [this, other];
+    }
+    if (other instanceof ObjectApply) {
+      if (this.key === other.key) {
+        return [
+          new Remove(this.key, other.op.apply(this.old_value)),
+          new NoOp()
+        ];
+      }
+      return [this, other];
+    }
+    return null;
+  }
+}
+
+class Rename implements Operation {
+  constructor(
+    public readonly old_key: string,
+    public readonly new_key: string
+  ) {}
+
+  public apply(value: Value): Value {
+    const __value: unknown = out(value);
+    const _value: { [k:string]: Value } = __value as { [k:string]: Value };
+    const d: typeof _value = shallow_clone(_value);
+    const v = d[this.old_key];
+    delete d[this.old_key];
+    d[this.new_key] = v;
+    return obj(d);
+  }
+
+  public simplify(): Operation {
+    return this;
+  }
+
+  public invert(): Operation {
+    return new Rename(this.new_key, this.old_key);
+  }
+
+  public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) {
+      return this;
+    }
+    if (other instanceof Set) {
+      return new Set(
+        this.invert().apply(
+          other.old_value
+        ),
+        other.new_value
+      ).simplify();
+    }
+    if (other instanceof Remove) {
+      if (this.new_key === other.key) {
+        return new Remove(this.old_key,atom(this.new_key));
+      }
+    }
+    return null;
+  }
+
+  public rebase(other: Operation): [Operation,Operation] | null {
+    if (other instanceof NoOp) { return [this, other]; }
+    if (other instanceof Rename) {
+      if(this.old_key === other.old_key) {
+        if (this.new_key === other.new_key) {
+          return [ new NoOp(), new NoOp() ];
+        }
+
+        if (cmp(this.new_key, other.new_key) < 0) {
+          return [
+            new NoOp(),
+            new Rename(this.new_key, other.new_key)
+          ];
+        }
+        return null;
+      }
+      if (this.new_key === other.new_key) {
+        if (cmp(this.old_key, other.old_key) < 0) {
+          return [
+            new NoOp(),
+            other
+          ];
+        }
+        return null;
+      }
+      return [this, other];
+    }
+    if (other instanceof ObjectApply) {
+      if (this.old_key === other.key) {
+        return [
+          this,
+          new ObjectApply(this.new_key, other.op)
+        ];
+      }
+      return [this, other];
+    }
+    return null;
+  }
+}
+
+class ObjectApply implements Operation {
+  constructor(
+    public readonly key: string,
+    public readonly op: Operation
+  ) {}
+
+  public apply(value: Value): Value {
+    const __value: unknown = out(value);
+    const _value: { [k:string]: Value } = __value as { [k:string]: Value };
+    const d: Partial<typeof _value> = {};
+    for (let k in _value) {
+      d[k] = _value[k];
+    }
+    d[this.key] = this.op.apply(d[this.key] as Value);
+    return obj(d as typeof _value) as Value;
+  }
+
+  public simplify(): Operation {
+    const op2 = this.op.simplify();
+    if (op2 instanceof NoOp) {
+      return new NoOp();
+    }
+    return this;
+  }
+
+  public invert(): Operation {
+    return new ObjectApply(this.key, this.op.invert());
+  }
+
+  public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) { return this; }
+    if (other instanceof Set) {
+      return new Set(
+        this.invert().apply(other.old_value),
+        other.new_value
+      ).simplify();
+    }
+    if (other instanceof Remove) {
+      if (this.key === other.key) {
+        return other.simplify();
+      }
+    }
+    if (other instanceof ObjectApply) {
+      if (this.key === other.key) {
+        const op2 = this.op.compose(other.op);
+        if (op2) {
+          return new ObjectApply(this.key, op2);
+        }
+      }
+    }
+    return null;
+  }
+
+  public rebase(other: Operation): [Operation,Operation] | null {
+    if (other instanceof NoOp) { return [this, other]; }
+    if (other instanceof ObjectApply) {
+      if (this.key !== other.key) {
+        return [this, other];
+      }
+      const opa = this.op.rebase(other.op);
+      const opb = other.op.rebase(this.op);
+      if (opa && opb) {
+        return [
+          (opa instanceof NoOp)
+            ? new NoOp()
+            : new ObjectApply(this.key, opa[0]),
+          (opb instanceof NoOp)
+            ? new NoOp()
+            : new ObjectApply(other.key, opb[1])
+        ];
+      }
+    }
+    return null;
+  }
+}
+
 export {
   Operation,
   NoOp,
@@ -829,5 +1115,8 @@ export {
   ArrayApply,
   Set,
   Map,
-  List
+  List,
+  Put,
+  Remove,
+  Rename
 };
