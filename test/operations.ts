@@ -25,6 +25,16 @@ test("splice", (t) => {
   const v: Value = represent("gat!");
   const ins1 = new Insert(1, "o");
   const del1 = new Delete(3, "!");
+
+  const insa = new Insert(1, "a");
+  const insb = new Insert(2, "b");
+  const insab = new Insert(1, "ab");
+
+  const ins_inverted = ins1.invert().compose(ins1);
+  if (!ins_inverted) {
+    throw new Error("error composing inverse splices in test");
+  }
+
   const r1 = del1.rebase(ins1);
   if (!r1) {
     throw new Error("error in first splice rebase");
@@ -41,7 +51,6 @@ test("splice", (t) => {
 
   t.equal(v, ins1.invert().apply(ins1.apply(v)));
   t.equal(v, del1.invert().apply(del1.apply(v)));
-
 
   t.equal("goat!", ins1.apply(v));
   t.equal("gat", del1.apply(v));
@@ -61,6 +70,13 @@ test("splice", (t) => {
   t.same(r2[1], new Delete(4, "!"));
 
   t.equal("goat", r2[1].apply(r2[0].apply(v)));
+
+  t.same(ins1.compose(new NoOp()), ins1);
+  t.same(new NoOp().compose(ins1), ins1);
+  t.same(insab, insa.compose(insb));
+
+  t.same(new NoOp(), ins_inverted.simplify());
+
   t.end();
 });
 

@@ -11,7 +11,8 @@ interface Operation {
   apply(value: Value): Value;
   rebase(other: Operation): [Operation,Operation] | null;
   invert(): Operation;
-  compose(other: Operation): Operation;
+  compose(other: Operation): Operation | null;
+  simplify(): Operation;
 }
 
 class NoOp implements Operation {
@@ -23,8 +24,12 @@ class NoOp implements Operation {
     return this;
   }
 
-  public compose(other: Operation): Operation {
+  public compose(other: Operation): Operation | null {
     return other;
+  }
+
+  public simplify(): Operation {
+    return this;
   }
 
   public rebase(other: Operation): [Operation,Operation] | null {
@@ -83,8 +88,74 @@ class Splice implements Operation {
     );
   }
 
-  public compose(other: Operation): Operation {
-    return other;
+  public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) {
+      return this;
+    }
+    if (other instanceof Splice) {
+      if (this.pos <= other.pos
+        && other.pos + other.old_value.length <=
+        this.pos + this.new_value.length) {
+        const item1 : string | unknown[] = this.new_value.slice(0, other.pos - this.pos);
+        const item2 : typeof item1 = other.new_value;
+        const item3 : typeof item2 = this.new_value.slice(
+          this.new_value.length +
+            (other.pos + other.old_value.length) -
+            (this.pos + this.new_value.length)
+        );
+        if ("string" === typeof item1) {
+          return new Splice(
+            this.pos,
+            this.old_value,
+            item1 + item2 + item3
+          );
+        }
+        else if (Array.isArray(item1)) {
+          return new Splice(
+            this.pos,
+            this.old_value,
+            item1.concat(item2).concat(item3)
+          );
+        }
+        else {
+          throw new Error("AAHHH");
+        }
+      }
+
+      if (other.pos <= this.pos
+        && this.pos + this.new_value.length <=
+        other.pos + other.old_value.length) {
+        let item1 : string | unknown[] = other.old_value.slice(0, this.pos - other.pos);
+        let item2 : typeof item1  = other.old_value;
+        let item3 : typeof item2  = other.old_value.slice(
+          other.old_value.length + (this.pos + this.new_value.length) - (other.pos + other.old_value.length));
+        if ("string" === typeof item1) {
+          return new Splice(
+            other.pos,
+            item1 + item2 + item3,
+            other.new_value
+          );
+        }
+        else if (Array.isArray(item1)) {
+          return new Splice(
+            other.pos,
+            item1.concat(item2).concat(item3),
+            other.new_value
+          );
+        }
+        else {
+          throw new Error("AHHHHHHHHH");
+        }
+      }
+    }
+    return null;
+  }
+
+  public simplify(): Operation {
+    if (deepEqual(this.old_value, this.new_value)) {
+      return new NoOp();
+    }
+    return this;
   }
 
   public rebase(other: Operation): [Operation,Operation] | null {
