@@ -41,6 +41,105 @@ class NoOp implements Operation {
   }
 }
 
+class List implements Operation {
+  constructor(
+    public readonly ops: Operation[]
+  ) {}
+
+  public apply(value: Value): Value {
+    let __value: unknown = out(value);
+    let _value: string | Value[] = __value as (string | Value[]);
+    for (let i = 0; i < this.ops.length; i++) {
+      __value = out(this.ops[i].apply(represent(_value)));
+      _value = __value as (string | Value[]);
+    }
+    return represent(_value);
+  }
+
+  public rebase(other: Operation): [Operation,Operation] | null {
+    return other.rebase(this);
+  }
+
+  public invert(): Operation {
+    let new_ops = [];
+    for (let i = this.ops.length - 1; i >= 0; i--) {
+      new_ops.push(this.ops[i].invert());
+    }
+    return new List(new_ops);
+  }
+
+  public compose(other: Operation): Operation | null {
+    if (0 === this.ops.length) {
+      return other;
+    }
+    if (other instanceof NoOp) {
+      return this;
+    }
+    if (other instanceof Set) {
+      return other.simplify();
+    }
+    if (other instanceof List) {
+      if (0 === other.ops.length) {
+        return this;
+      }
+      return new List(this.ops.concat(other.ops));
+    }
+    let new_ops = this.ops.slice();
+    new_ops.push(other);
+    return new List(new_ops);
+  }
+
+  public simplify(): Operation {
+    if (0 === this.ops.length) {
+      return new NoOp();
+    }
+    let new_ops: Operation[] = [];
+    for (let i = 0; i < this.ops.length; i++) {
+      let op: Operation = this.ops[i];
+      if (op instanceof NoOp) {
+        continue;
+      }
+
+      if (0 === new_ops.length) {
+        new_ops.push(op);
+      }
+      else {
+        for (let j = new_ops.length - 1; j >= 0; j--) {
+          let c = new_ops[j].compose(op);
+          if (c) {
+            if (c instanceof NoOp) {
+              new_ops.splice(j, 1);
+            }
+            else {
+              new_ops[j] = c;
+            }
+          }
+          else {
+            if (j > 0) {
+              let r1 = op.rebase(new_ops[j].invert());
+              let r2 = new_ops[j].rebase(op);
+              if (null !== r1 && null !== r2) {
+                op = r1[0];
+                new_ops[j] = r2[1];
+                continue;
+              }
+            }
+            new_ops.splice(j + 1, 0, op);
+            break;
+          }
+        }
+      }
+    }
+    if (0 === new_ops.length) {
+      return new NoOp();
+    }
+    if (1 === new_ops.length) {
+      return new_ops[0];
+    }
+    return new List(new_ops);
+  }
+}
+
 class Splice implements Operation {
   public readonly old_value: string | Value[];
   public readonly new_value: string | Value[];
@@ -150,6 +249,7 @@ class Splice implements Operation {
   }
 
   public rebase(other: Operation): [Operation,Operation] | null {
+    if (other instanceof NoOp) { return [this, other]; }
     if (other instanceof Splice) {
       return this.rebase_splice(other);
     }
@@ -449,6 +549,9 @@ class Move implements Operation {
         new ArrayApply(map_index(other.pos, this), other.op)
       ];
     }
+    if (other instanceof Map) {
+      return [ this, other ];
+    }
     return null;
   }
 
@@ -585,6 +688,29 @@ class ArrayApply implements Operation {
         ];
       }
     }
+    if (other instanceof Map) {
+      const opa = this.op.rebase(other.op);
+      if (!opa) {
+        return null;
+      }
+      const r = (opa instanceof NoOp)
+        ? new NoOp()
+        : new ArrayApply(this.pos, opa[0]);
+      const opb = other.op.rebase(this.op);
+      if(opa && opb && deepEqual(opa[0],opb[1])) {
+        return [r, other];
+      }
+      else {
+        return [
+          r,
+          new List([
+            this.invert(),
+            other,
+            r
+          ]).simplify()
+        ];
+      }
+    }
     return null;
   }
   public invert(): Operation {
@@ -701,5 +827,6 @@ export {
   Move,
   ArrayApply,
   Set,
-  Map
+  Map,
+  List
 };
