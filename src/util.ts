@@ -118,6 +118,43 @@ const cmp = <A,B>(a: A, b: B): number => {
   throw new Error(`Type ${type_name(a)} not comparable.`);
 };
 
+function concat2<T = string | Array<unknown>>(a: T, b: T): T {
+  let result: unknown;
+  if ("string" === typeof a && "string" === typeof b) {
+    result = `${a}${b}`;
+  }
+  else if (Array.isArray(a) && Array.isArray(b)) {
+    result = a.concat(b);
+  }
+  else { throw new Error("Error in concat2"); }
+  return result as (typeof a);
+}
+
+function concat3<T = string | Array<unknown>>(a: T, b: T, c: T): T {
+  let result: unknown;
+  if ("string" === typeof a) {
+    result = a + b + c;
+  }
+  else if (Array.isArray(a)) {
+    result = a.concat(b).concat(c);
+  }
+  else { throw new Error("Error in concat3"); }
+  return result as (typeof a);
+}
+
+function concat4<T = unknown>(a: T, b: T, c: T, d: T): T {
+  let result: unknown;
+  if ("string" === typeof a) {
+    result = a + b + c + d;
+  }
+  else if (Array.isArray(a)) {
+    result = a.concat(b).concat(c).concat(d);
+  }
+  else { throw new Error("Error in concat4"); }
+  return result as (typeof a);
+}
+
+
 export {
   _,
   Algebra,
@@ -127,5 +164,8 @@ export {
   _in,
   out,
   type_name,
-  cmp
+  cmp,
+  concat2,
+  concat3,
+  concat4
 };

@@ -3,7 +3,8 @@ import {
   Splice,
   Insert,
   Delete,
-  NoOp
+  NoOp,
+  Move
 } from "../src/operations";
 import { Value, represent } from "../src/value";
 
@@ -18,10 +19,13 @@ test("noop", (t) => {
   t.same(r[0], new NoOp());
   t.same(r[1], new NoOp());
   t.same(n, n.invert());
+
+  t.same(n, n.simplify());
+  t.same(n, n.compose(n));
   t.end();
 });
 
-test("splice", (t) => {
+test("splice - strings", (t) => {
   const v: Value = represent("gat!");
   const ins1 = new Insert(1, "o");
   const del1 = new Delete(3, "!");
@@ -77,6 +81,30 @@ test("splice", (t) => {
 
   t.same(new NoOp(), ins_inverted.simplify());
 
+  t.same(
+    new Delete(0, "ab").compose(
+      new Insert(0, "abc")
+    ),
+    new Splice(
+      0,
+      "ab",
+      "abc"
+    ).simplify()
+  );
+
   t.end();
 });
 
+test("move - strings", (t) => {
+  const v: Value = represent("albatross");
+  const m1 = new Move(0, 1, 2);
+  t.same(m1.apply(v), "labatross");
+  t.end();
+});
+
+test("move - arrays", (t) => {
+  const v: Value = represent([1,2,3,4,5,6]);
+  const m1 = new Move(0,1,2);
+  t.same(m1.apply(v), [2,1,3,4,5,6]);
+  t.end();
+});

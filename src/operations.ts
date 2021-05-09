@@ -4,7 +4,7 @@ import {
   atom
 } from "./value";
 
-import { cmp, out } from "./util";
+import { cmp, out, concat2, concat3, concat4 } from "./util";
 import deepEqual from "deep-equal";
 
 interface Operation {
@@ -41,10 +41,10 @@ class NoOp implements Operation {
 }
 
 class Splice implements Operation {
-  protected old_value: string | Value[];
-  protected new_value: string | Value[];
+  public readonly old_value: string | Value[];
+  public readonly new_value: string | Value[];
   constructor(
-    protected pos: number,
+    public readonly pos: number,
     old_value: string | Value[],
     new_value: string | Value[]
   ) {
@@ -66,18 +66,8 @@ class Splice implements Operation {
     const _value: string | Value[] = __value as (string | Value[]);
     const item1: typeof _value = (_value.slice(0,this.pos));
     const item3: typeof _value = (_value.slice(this.pos + this.old_value.length));
-    if ("string" === typeof _value) {
-      return atom(item1 + (this.new_value as string) + item3);
-    }
-    else if (Array.isArray(_value)) {
-      return arr(
-        (item1 as Value[])
-          .concat(this.new_value as Value[])
-          .concat(item3 as Value[])
-      );
-    }
-    else
-    { throw new Error(`cannot splice value ${value}`); }
+    const catted: typeof item3 = concat3(item1, this.new_value, item3);
+    return ("string" === typeof catted ? atom(catted) : arr(catted));
   }
 
   public invert(): Operation {
@@ -96,56 +86,34 @@ class Splice implements Operation {
       if (this.pos <= other.pos
         && other.pos + other.old_value.length <=
         this.pos + this.new_value.length) {
-        const item1 : string | unknown[] = this.new_value.slice(0, other.pos - this.pos);
+        const item1 : string | Value[] = this.new_value.slice(0, other.pos - this.pos);
         const item2 : typeof item1 = other.new_value;
         const item3 : typeof item2 = this.new_value.slice(
           this.new_value.length +
             (other.pos + other.old_value.length) -
             (this.pos + this.new_value.length)
         );
-        if ("string" === typeof item1) {
-          return new Splice(
-            this.pos,
-            this.old_value,
-            item1 + item2 + item3
-          );
-        }
-        else if (Array.isArray(item1)) {
-          return new Splice(
-            this.pos,
-            this.old_value,
-            item1.concat(item2).concat(item3)
-          );
-        }
-        else {
-          throw new Error("AAHHH");
-        }
+        const catted: typeof item3 = concat3(item1, item2, item3);
+        return new Splice(
+          this.pos,
+          this.old_value,
+          catted
+        );
       }
 
       if (other.pos <= this.pos
         && this.pos + this.new_value.length <=
         other.pos + other.old_value.length) {
-        let item1 : string | unknown[] = other.old_value.slice(0, this.pos - other.pos);
-        let item2 : typeof item1  = other.old_value;
-        let item3 : typeof item2  = other.old_value.slice(
+        const item1 : string | Value[] = other.old_value.slice(0, this.pos - other.pos);
+        const item2 : typeof item1  = other.old_value;
+        const item3 : typeof item2  = other.old_value.slice(
           other.old_value.length + (this.pos + this.new_value.length) - (other.pos + other.old_value.length));
-        if ("string" === typeof item1) {
-          return new Splice(
-            other.pos,
-            item1 + item2 + item3,
-            other.new_value
-          );
-        }
-        else if (Array.isArray(item1)) {
-          return new Splice(
-            other.pos,
-            item1.concat(item2).concat(item3),
-            other.new_value
-          );
-        }
-        else {
-          throw new Error("AHHHHHHHHH");
-        }
+        const catted: typeof item3 = concat3(item1, item2, item3);
+        return new Splice(
+          other.pos,
+          catted,
+          other.new_value
+        );
       }
     }
     return null;
@@ -234,28 +202,20 @@ class Splice implements Operation {
       const item3: typeof item1 = this.old_value.slice(
         other.pos + other.old_value.length -
           this.pos);
+      const catted: typeof item3 = concat3(
+        item1,
+        other.new_value,
+        item3
+      );
       // we absorb their splice into ours
-      if ("string" === typeof item1 && "string" === typeof item3) {
-
-        return [
-          new Splice(
-            this.pos,
-            item1 + (other.new_value as string) + item3,
-            this.new_value
-          ),
-          new NoOp()
-        ];
-      }
-      else if (Array.isArray(item1) && Array.isArray(item3)) {
-        return [
-          new Splice(
-            this.pos,
-            item1.concat(other.new_value as Value[]).concat(item3),
-            this.new_value
-          ),
-          new NoOp()
-        ];
-      }
+      return [
+        new Splice(
+          this.pos,
+          catted,
+          this.new_value
+        ),
+        new NoOp()
+      ];
     }
     // we precede them but the other cases don't apply
     else if (this.pos < other.pos) {
@@ -306,10 +266,53 @@ class Delete extends Splice {
   }
 }
 
+class Move implements Operation {
+  constructor(
+    public readonly pos: number,
+    public readonly count: number,
+    public readonly new_pos: number
+  ) {}
+
+  public apply(value: Value): Value {
+    const __value: unknown = out(value);
+    const _value: string | Value[] = __value as (string | Value[]);
+    if (null === _value) { throw new Error ("shut up"); }
+    if (this.pos < this.new_pos) {
+      let item1 : string | Value[] = _value.slice(0, this.pos);
+      let item2 : typeof item1 = _value.slice(this.pos + this.count, this.new_pos);
+      let item3_a : typeof item2 = _value.slice(this.pos, this.pos + this.count);
+      let item3_b : typeof item3_a = _value.slice(this.new_pos);
+      let catted: typeof item1 = concat4(item1,item2,item3_a,item3_b);
+      return ("string" === typeof catted ? atom(catted) : arr(catted));
+    }
+    else {
+      let item1: string | Value[] = _value.slice(0, this.new_pos);
+      let item2: typeof item1 = _value.slice(this.pos, this.pos + this.count);
+      let item3: typeof item2 = _value.slice(this.new_pos, this.pos);
+      let item4: typeof item3 = _value.slice(this.pos + this.count);
+      let catted: typeof item1 = concat4(item1,item2,item3,item4);
+      return ("string" === typeof catted ? atom(catted) : arr(catted));
+    }
+  }
+  public rebase(other: Operation): [Operation,Operation] | null {
+    return null;
+  }
+  public invert(): Operation {
+    return this;
+  }
+  public compose(other: Operation): Operation | null {
+    return null;
+  }
+  public simplify(): Operation {
+    return this;
+  }
+}
+
 export {
   Operation,
   NoOp,
   Splice,
   Insert,
-  Delete
+  Delete,
+  Move
 };
