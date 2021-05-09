@@ -605,10 +605,17 @@ class Move implements Operation {
 }
 
 class Set implements Operation {
+  public readonly old_value: Value;
+  public readonly new_value: Value;
   constructor(
-    public readonly old_value: Value,
-    public readonly new_value?: Value
-  ) {}
+    old_value: unknown,
+    new_value?: unknown
+  ) {
+    this.old_value = represent(old_value);
+    if (new_value) {
+      this.new_value = represent(new_value);
+    }
+  }
 
   // eslint-disable-next-line
   public apply(value: Value): Value {

@@ -6,9 +6,14 @@ import {
   NoOp,
   Move,
   ArrayApply,
-  Map
+  Map,
+  Put,
+  Remove,
+  Set,
+  Rename,
+  ObjectApply
 } from "../src/operations";
-import { Value, represent } from "../src/value";
+import { Value, represent, atom } from "../src/value";
 
 test("noop", (t) => {
   let n = new NoOp();
@@ -154,5 +159,102 @@ test("map", (t) => {
   const v: Value = represent(["hello", "smurf","otis"]);
   const m1 = new Map(new Insert(0, "> "));
   t.same(m1.apply(v), ["> hello", "> smurf", "> otis"]);
+  t.end();
+});
+
+test("put", (t) => {
+  const v: Value = represent({ a: 1 });
+  const p1 = new Put("b", represent(2));
+  t.same(p1.apply(v), { a: 1, b: 2});
+  t.end();
+});
+
+test("remove", (t) => {
+  const v: Value = represent({ a: 1, b: 2 });
+  const r1 = new Remove("b", represent(2));
+  t.same(r1.apply(v), { a: 1 });
+  t.end();
+});
+
+test("set", (t) => {
+  const v: Value = represent({ a: 1 });
+  const s = new ObjectApply("a", new Set(atom(1),atom("cool")));
+  t.same(s.apply(v), { a: "cool" });
+  t.end();
+});
+
+test("rename", (t) => {
+  const v: Value = represent({ a: 1, b: 2 });
+  const r1 = new Rename("b", "c");
+  t.same(r1.apply(v), { a: 1 , c: 2});
+  t.end();
+});
+
+test("object apply", (t) => {
+  const v: Value = represent({ a: "hello" });
+  const ap = new ObjectApply("a", new Insert(5, ", world!"));
+  t.same(ap.apply(v), { a: "hello, world!"});
+  t.end();
+});
+
+test("misc", (t) => {
+  const v: Value = represent({
+    url: "https://niltag.net/example-service",
+    method: "PATCH",
+    Headers: {
+      "Content-Type": "application/Json",
+      "The-CORS-Header": "*"
+    },
+    body: JSON.stringify([1, 2, 3])
+  });
+  const op1 = new ObjectApply("method", new Set("PATCH", "POST"));
+  t.same(op1.apply(v), {
+    url: "https://niltag.net/example-service",
+    method: "POST",
+    Headers: {
+      "Content-Type": "application/Json",
+      "The-CORS-Header": "*"
+    },
+    body: JSON.stringify([1, 2, 3])
+  });
+
+  const op2 = new ObjectApply(
+    "Headers",
+    new ObjectApply(
+      "Content-Type",
+      new Set("application/Json", "application/json")
+    )
+  );
+  t.same(op2.apply(v), {
+    url: "https://niltag.net/example-service",
+    method: "PATCH",
+    Headers: {
+      "Content-Type": "application/json",
+      "The-CORS-Header": "*"
+    },
+    body: JSON.stringify([1, 2, 3])
+  });
+
+  const op3 = new Rename("Headers", "headers");
+  t.same(op3.apply(v), {
+    url: "https://niltag.net/example-service",
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/Json",
+      "The-CORS-Header": "*"
+    },
+    body: JSON.stringify([1, 2, 3])
+  });
+
+  const r1 = op3.rebase(op2);
+  if (!r1) { throw new Error("error in misc rebase 1"); }
+  t.same(r1[0], new Rename("Headers", "headers"));
+  t.same(r1[1], new ObjectApply(
+    "headers",
+    new ObjectApply(
+      "Content-Type",
+      new Set("application/Json", "application/json")
+    )
+  ));
   t.end();
 });
