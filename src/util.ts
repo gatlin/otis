@@ -154,6 +154,43 @@ function concat4<T = unknown>(a: T, b: T, c: T, d: T): T {
   return result as (typeof a);
 }
 
+function map_index(pos: any, move_op: any): any {
+  if (pos >= move_op.pos && pos < move_op.pos + move_op.count) {
+    return (pos - move_op.pos) + move_op.new_pos; // within the move
+  }
+  // before the move
+  if (pos < move_op.pos && pos < move_op.new_pos) {
+    return pos;
+  }
+
+  if (pos < move_op.pos) {
+    return pos + move_op.count; // a moved around by from right to left
+  }
+  if (pos > move_op.pos && pos >= move_op.new_pos) {
+    return pos; // after the move
+  }
+  if (pos > move_op.pos) {
+    return pos - move_op.count; // a moved around by from left to right
+  }
+  throw "unhandled problem"
+}
+
+function elem(seq: any, pos: any): any {
+  if (typeof seq === 'string') {
+    return seq.charAt(pos);
+  }
+  else {
+    return seq[pos];
+  }
+}
+
+function unelem(elem: any, seq : any ): any {
+  if (typeof seq === 'string') {
+    return elem;
+  } else {
+    return [elem];
+  }
+}
 
 export {
   _,
@@ -167,5 +204,8 @@ export {
   cmp,
   concat2,
   concat3,
-  concat4
+  concat4,
+  map_index,
+  elem,
+  unelem
 };

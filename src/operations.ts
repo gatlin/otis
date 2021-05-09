@@ -1,10 +1,11 @@
 import {
   Value,
   arr,
-  atom
+  atom,
+  represent
 } from "./value";
 
-import { cmp, out, concat2, concat3, concat4 } from "./util";
+import { cmp, out, concat2, concat3, concat4, map_index, elem, unelem } from "./util";
 import deepEqual from "deep-equal";
 
 interface Operation {
@@ -116,6 +117,28 @@ class Splice implements Operation {
         );
       }
     }
+    if (other instanceof Set) {
+      return new Set(
+        this.invert().apply(other.old_value),
+        other.new_value
+      ).simplify();
+    }
+    if (other instanceof ArrayApply) {
+      if (other.pos >= this.pos && other.pos < this.pos + this.old_value.length) {
+        return new Splice(
+          this.pos,
+          this.old_value,
+          concat3(
+            (this.new_value as string | Value[]).slice(0,other.pos - this.pos),
+            unelem(
+              other.apply(elem(this.new_value, other.pos - this.pos)),
+              this.old_value
+            ),
+            this.new_value.slice(other.pos - this.pos + 1)
+          )
+        ).simplify();
+      }
+    }
     return null;
   }
 
@@ -130,7 +153,114 @@ class Splice implements Operation {
     if (other instanceof Splice) {
       return this.rebase_splice(other);
     }
+    if (other instanceof Move) {
+      return this.rebase_move(other);
+    }
+    if (other instanceof ArrayApply) {
+      return this.rebase_arrayapply(other);
+    }
+    if (other instanceof Map) {
+      return this.rebase_map(other);
+    }
     if (other instanceof NoOp) { return [this,other]; }
+    return null;
+  }
+
+  private rebase_map(other: Map): [Operation,Operation] | null {
+    try {
+      const __old_value: unknown = out(other.apply(represent(this.old_value)));
+      const _old_value : string | Value[] = __old_value as (string | Value[]);
+      const __new_value: unknown = out(other.apply(represent(this.new_value)));
+      const _new_value : string | Value[] = __new_value as (string | Value[]);
+      return [
+        new Splice(
+          this.pos,
+          _old_value,
+          _new_value
+        ),
+        other
+      ];
+    }
+    catch (err) {
+      const __old_value: unknown = out(other.apply(represent(this.old_value)));
+      const _old_value : string | Value[] = __old_value as (string | Value[]);
+      return [
+        new Splice(
+          this.pos,
+          _old_value,
+          this.new_value
+        ),
+        new NoOp()
+      ];
+    }
+    return null;
+  }
+
+  private rebase_arrayapply(other: ArrayApply): [Operation,Operation] | null {
+    if (other.pos >= this.pos + this.old_value.length) {
+      return [
+        this,
+        new ArrayApply(
+          other.pos + this.new_value.length - this.old_value.length,
+          other.op
+        )
+      ];
+    }
+
+    if (other.pos < this.pos) {
+      return [this, other];
+    }
+
+    const old_value = concat3(
+      this.old_value.slice(0, other.pos - this.pos),
+      unelem(other.op.apply(
+        elem(this.old_value, other.pos - this.pos)), this.old_value),
+      this.old_value.slice(other.pos - this.pos + 1)
+    );
+
+    if (this.new_value.length === this.old_value.length) {
+      const new_value = concat3(
+        this.new_value.slice(0, other.pos - this.pos),
+        unelem(other.op.apply(elem(this.new_value,other.pos - this.pos)),this.old_value),
+        this.new_value.slice(other.pos - this.pos + 1)
+      );
+      return [
+        new Splice(this.pos, old_value, new_value),
+        other
+      ];
+    }
+    return [
+      new Splice(this.pos, old_value, this.new_value),
+      new NoOp()
+    ];
+  }
+
+  private rebase_move(other: Move): [Operation,Operation] | null {
+    if (this.pos + this.old_value.length < other.pos) {
+      return [
+        new Splice(
+          map_index(this.pos, other),
+          this.old_value,
+          this.new_value
+        ),
+        new Move(
+          other.pos + this.new_value.length - this.old_value.length,
+          other.count,
+          other.new_pos
+        )
+      ];
+    }
+
+    if (this.pos >= other.pos + other.count) {
+      return [
+        new Splice(
+          map_index(this.pos, other),
+          this.old_value,
+          this.new_value
+        ),
+        other
+      ];
+    }
     return null;
   }
 
@@ -294,16 +424,270 @@ class Move implements Operation {
       return ("string" === typeof catted ? atom(catted) : arr(catted));
     }
   }
+
   public rebase(other: Operation): [Operation,Operation] | null {
+    if (other instanceof NoOp) {
+      return [this,other];
+    }
+    if (other instanceof Move) {
+      if (this.pos + this.count >= other.pos
+        && this.pos < other.pos + other.count) {
+        return null;
+      }
+      return [
+        new Move(
+          map_index(this.pos, other),
+          this.count,
+          map_index(this.new_pos, other)
+        ),
+        new NoOp()
+      ];
+    }
+    if (other instanceof ArrayApply) {
+      return [
+        this,
+        new ArrayApply(map_index(other.pos, this), other.op)
+      ];
+    }
+    return null;
+  }
+
+  public invert(): Operation {
+    if (this.new_pos > this.pos) {
+      return new Move(
+        this.new_pos - this.count,
+        this.count,
+        this.pos
+      );
+    }
+    else {
+      return new Move(
+        this.new_pos,
+        this.count,
+        this.pos + this.count
+      );
+    }
+  }
+
+  public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) {
+      return this;
+    }
+    if (other instanceof Splice) {
+      if (this.new_pos === other.pos
+        && this.count === other.old_value.length
+        && 0 === other.new_value.length) {
+        return new Delete(this.pos, other.old_value);
+      }
+    }
+    if (other instanceof Move) {
+      if (this.new_pos === other.pos && this.count === other.count) {
+        return new Move(
+          this.pos,
+          other.new_pos,
+          this.count
+        );
+      }
+    }
+    return null;
+  }
+
+  public simplify(): Operation {
+    if (this.pos === this.new_pos) {
+      return new NoOp();
+    }
+    return this;
+  }
+}
+
+class Set implements Operation {
+  constructor(
+    public readonly old_value: Value,
+    public readonly new_value: Value
+  ) {}
+
+  public apply(value: Value): Value {
+    return this.new_value;
+  }
+
+  public rebase(other: Operation): [Operation,Operation] | null {
+    if (other instanceof NoOp) { return [this,other]; }
+    if (other instanceof Set) {
+      if (deepEqual(this.new_value, other.new_value)) {
+        return [new NoOp(), new NoOp()];
+      }
+
+      if (cmp(this.new_value,other.new_value) < 0) {
+        return [
+          new NoOp(),
+          new Set(
+            this.new_value,
+            other.new_value
+          )
+        ];
+      }
+    }
+    return null;
+  }
+
+  public compose(other: Operation): Operation | null {
+    return new Set(
+      this.old_value,
+      other.apply(this.new_value)
+    ).simplify();
+  }
+
+  public invert(): Operation {
+    return new Set(this.new_value, this.old_value);
+  }
+
+  public simplify(): Operation {
+    if (deepEqual(this.old_value, this.new_value)) {
+      return new NoOp();
+    }
+    return this;
+  }
+}
+
+class ArrayApply implements Operation {
+  constructor(
+    public readonly pos: number,
+    public readonly op: Operation
+  ) {}
+
+  public apply(value: Value): Value {
+    const __value: unknown = out(value);
+    const _value: string | Value[] = __value as (string | Value[]);
+    return concat3(
+      _value.slice(0, this.pos),
+      unelem((this.op as Operation).apply(elem(_value, this.pos)), _value),
+      _value.slice(this.pos+1, _value.length)
+    );
+  }
+  public rebase(other: Operation): [Operation,Operation] | null {
+    if (other instanceof NoOp) {
+      return [this,other];
+    }
+    if (other instanceof ArrayApply) {
+      if (other.pos !== this.pos) {
+        return [this, other];
+      }
+      const opa = this.op.rebase(other.op);
+      const opb = other.op.rebase(this.op);
+      if (opa && opb) {
+        return [
+          (opa instanceof NoOp)
+            ? new NoOp()
+            : new ArrayApply(this.pos, opa[0]),
+          (opb instanceof NoOp)
+            ? new NoOp()
+            : new ArrayApply(other.pos, opb[1])
+        ];
+      }
+    }
     return null;
   }
   public invert(): Operation {
-    return this;
+    return new ArrayApply(
+      this.pos,
+      this.op.invert()
+    );
   }
   public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) {
+      return this;
+    }
+    if (other instanceof Splice) {
+      if (this.pos >= other.pos
+        && this.pos < other.pos + other.old_value.length) {
+        return new Splice(
+          other.pos,
+          concat3(
+            other.old_value.slice(0, this.pos - other.pos),
+            unelem(this.invert().apply(elem(
+              other.old_value, this.pos - other.pos)),
+                   other.old_value),
+            other.old_value.slice(this.pos - other.pos + 1)),
+          other.new_value
+        ).simplify();
+      }
+    }
+    if (other instanceof ArrayApply) {
+      if (this.pos === other.pos) {
+        const op2 = this.op.compose(other.op);
+        if (op2) {
+          return new ArrayApply(this.pos, op2);
+        }
+      }
+    }
     return null;
   }
   public simplify(): Operation {
+    const op = this.op.simplify();
+    if (op instanceof NoOp) {
+      return new NoOp();
+    }
+    return this;
+  }
+}
+
+class Map implements Operation {
+  constructor(
+    public readonly op: Operation
+  ) {}
+
+  public apply(value: Value): Value {
+    const __value: unknown = out(value);
+    const _value: string | Value[] = __value as (string | Value[]);
+    const d: Value[] = ("string" === typeof _value)
+      ? _value.split(/.{0}/).map(atom) as Value[]
+      : _value.slice();
+    for (let i = 0; i < d.length; i++) {
+      d[i] = this.op.apply(d[i]);
+    }
+    return ("string" === typeof _value)
+      ? atom(d.join(""))
+      : arr(d);
+  }
+
+  public rebase(other: Operation): [Operation,Operation] | null {
+    if (other instanceof NoOp) { return [this,other]; }
+    if (other instanceof Map) {
+      const opa = this.op.rebase(other.op);
+      const opb = other.op.rebase(this.op);
+      if (opa && opb) {
+        return [
+          (opa instanceof NoOp) ? new NoOp() : new Map(opa[0]),
+          (opb instanceof NoOp) ? new NoOp() : new Map(opb[1])
+        ];
+      }
+    }
+    return null;
+  }
+  public invert(): Operation {
+    return new Map(this.op.invert());
+  }
+  public compose(other: Operation): Operation | null {
+    if (other instanceof NoOp) { return this; }
+    if (other instanceof Set) {
+      return new Set(
+        this.invert().apply(other.old_value),
+        other.new_value
+      ).simplify();
+    }
+    if (other instanceof Map) {
+      const op2 = this.op.compose(other.op);
+      if (op2) {
+        return new Map(op2);
+      }
+    }
+    return null;
+  }
+  public simplify(): Operation {
+    const op = this.op.simplify();
+    if (op instanceof NoOp) {
+      return new NoOp();
+    }
     return this;
   }
 }
@@ -314,5 +698,8 @@ export {
   Splice,
   Insert,
   Delete,
-  Move
+  Move,
+  ArrayApply,
+  Set,
+  Map
 };
