@@ -61,8 +61,11 @@ test("splice - strings", (t) => {
   }
   const sp1 = new Splice(3, "123", "456");
   const sp2 = new Splice(4, "2", "ABC");
+  const sp3 = new Splice(3, "1", "ABC");
   const r3 = sp1.rebase(sp2);
   if (!r3) { throw new Error("error in third splice rebase"); }
+  const r4 = sp1.rebase(sp3);
+  if (!r4) { throw new Error("error in fourth splice rebase"); }
 
   t.ok(ins1 instanceof Splice);
   t.ok(del1 instanceof Splice);
@@ -112,8 +115,14 @@ test("splice - strings", (t) => {
   t.same(rm1[0], new Splice(0, "", "o"));
   t.same(rm1[1], m1);
 
+  t.same(sp1.apply(represent("123")), "123456");
+  t.same(sp2.apply(represent("123")), "123ABC");
+
   t.same(r3[0], new Splice(3, "1ABC3", "456"));
   t.same(r3[1], new NoOp());
+
+  t.same(r4[0], new Splice(3, "ABC23", "456"));
+  t.same(r4[1], new NoOp());
 
   t.end();
 });
