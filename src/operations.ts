@@ -1118,5 +1118,6 @@ export {
   List,
   Put,
   Remove,
-  Rename
+  Rename,
+  ObjectApply
 };
