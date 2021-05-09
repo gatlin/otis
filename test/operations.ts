@@ -287,5 +287,10 @@ test("misc", (t) => {
       new Set("application/Json", "application/json")
     )
   ));
+
+  t.same(
+    r1[1].apply(op3.apply(op1.apply(v))),
+    new List([op3, r1[1]]).simplify().apply(op1.apply(v))
+  );
   t.end();
 });
