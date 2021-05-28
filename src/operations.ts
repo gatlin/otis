@@ -17,6 +17,40 @@ interface Operation {
   simplify(): Operation;
 }
 
+// eslint-disable-next-line
+function serialize(op: Operation): { tag: string, args: any } {
+  let tag: string = op.constructor.name;
+  let args = out(represent(op)) as { [key:string]: unknown };
+  if (op instanceof Insert || op instanceof Delete)
+  { tag = "Splice"; }
+  else if (op instanceof List)
+  { args = { ...args, ops: op.ops.map(serialize) }; }
+  else if ( op instanceof ArrayApply ||
+    op instanceof ObjectApply ||
+    op instanceof Map )
+  { args = { ...args, op: serialize(op.op) }; }
+  return { tag, args };
+}
+
+// eslint-disable-next-line
+function deserialize(value: { tag: string, args: any }): Operation {
+  const { tag, args } = value;
+  switch (tag) {
+  case "NoOp": return new NoOp();
+  case "Splice": return new Splice(args.pos,args.old_value,args.new_value);
+  case "List": return new List(args.ops.map(deserialize));
+  case "Move": return new Move(args.pos, args.count, args.new_pos);
+  case "Set": return new Set(args.old_value, args.new_value);
+  case "Put": return new Put(args.key, args.value);
+  case "Map": return new Map(deserialize(args.op));
+  case "Remove": return new Remove(args.key, args.old_value);
+  case "Rename": return new Rename(args.old_value, args.new_value);
+  case "ArrayApply": return new ArrayApply(args.pos, deserialize(args.op));
+  case "ObjectApply": return new ObjectApply(args.key, deserialize(args.op));
+  default: throw new Error(`Invalid serialized operation: ${value}`);
+  }
+}
+
 class NoOp implements Operation {
   public apply(value: Value): Value {
     return value;
@@ -1115,6 +1149,8 @@ class ObjectApply implements Operation {
 
 export {
   Operation,
+  serialize,
+  deserialize,
   NoOp,
   Splice,
   Insert,
