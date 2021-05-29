@@ -15,7 +15,7 @@
     "lint": "eslint . --fix --ext .ts",
     "test": "tap --ts --no-coverage test/**/*.ts",
     "coverage": "tap --ts test/**/*.ts",
-    "prepare": "npm run test && npm run build"
+    "prepare": "npm run build"
   },
   "author": "",
   "license": "ISC",
