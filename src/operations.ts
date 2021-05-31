@@ -640,30 +640,30 @@ class Move implements Operation {
 
 class Set implements Operation {
   public readonly old_value: Value;
-  public readonly new_value: Value;
+  public readonly new_value: Value | undefined;
   constructor(
     old_value: unknown,
     new_value?: unknown
   ) {
     this.old_value = represent(old_value);
-    if (new_value) {
+    if ("undefined" !== typeof new_value) {
       this.new_value = represent(new_value);
     }
   }
 
   // eslint-disable-next-line
   public apply(value: Value): Value {
-    return this.new_value as Value;
+    return this.new_value ? this.new_value as Value : represent(null);
   }
 
   public rebase(other: Operation): [Operation,Operation] | null {
     if (other instanceof NoOp) { return [this,other]; }
     if (other instanceof Set) {
-      if (deepEqual(this.new_value, other.new_value)) {
+      if (this.new_value && deepEqual(this.new_value, other.new_value)) {
         return [new NoOp(), new NoOp()];
       }
 
-      if (cmp(this.new_value,other.new_value) < 0) {
+      if (this.new_value && cmp(this.new_value,other.new_value) < 0) {
         return [
           new NoOp(),
           new Set(
