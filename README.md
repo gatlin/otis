@@ -20,7 +20,7 @@ this library provides:
   plain values.
   it may be overkill, it's probably overkill.
   
-- the type `Operation` and its concrete implematations.
+- the type `Operation` and its concrete implementations.
 
   an `Operation` has the following interface:
   
