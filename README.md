@@ -20,22 +20,12 @@ this library provides:
   plain values.
   it may be overkill, it's probably overkill.
   
-- the type `Operation` and its concrete implementations.
-
-  an `Operation` has the following interface:
-  
-  ```typescript
-  interface Operation {
-    apply(value: Value): Value;
-    rebase(other: Operation): [Operation,Operation] | null;
-    invert(): Operation;
-    compose(other: Operation): Operation | null;
-    simplify(): Operation;
-  }
-  ```
+- the type `Operation` and its concrete implementations (listed below).
 
 - a [robot][robotfsm] state machine (`Editor`) which can be used to power an
   interactive, collaborative editing session of some kind.
+  you can see an example of what the editor is currently capable of below in the
+  `synopsis`.
 
 [robotfsm]: https://thisrobot.life
 
