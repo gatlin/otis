@@ -82,10 +82,12 @@ const create_editor = (
 };
 
 export type {
+  Edit,
   Editor,
   EditorContext
 };
 
 export {
+  editorMachine,
   create_editor
 };
