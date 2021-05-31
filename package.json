@@ -9,18 +9,20 @@
   ],
   "types": "dist/commonjs/index.d.ts",
   "scripts": {
+    "install": "npm run build",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig-esm.json",
     "clean": "rimraf dist",
     "dev": "ts-node src/index.ts",
     "lint": "eslint . --fix --ext .ts",
     "test": "tap --ts --no-coverage test/**/*.ts",
     "coverage": "tap --ts test/**/*.ts",
-    "prepare": "npm run build"
+    "prepare": "npm i"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "deep-equal": "^2.0.5"
+    "deep-equal": "^2.0.5",
+    "robot3": "^0.2.19"
   },
   "devDependencies": {
     "@types/deep-equal": "^1.0.1",
