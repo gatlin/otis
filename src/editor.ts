@@ -35,7 +35,6 @@ const editorMachine = createMachine({
       reduce((ctx: EditorContext, evt: Edit & { type: "edit" }) => {
         const { operation, base_revision, sender_id } = evt;
         const { _revision, _history, _body } = ctx;
-        console.log("EDITING revision", _revision);
         if (base_revision > _revision) {
           throw new Error(`error: base revision ${base_revision} > ${_revision}`);
         }
