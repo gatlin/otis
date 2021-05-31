@@ -101,11 +101,8 @@ The output of this program is
 > otis@0.1.1 dev
 > ts-node example.ts
 
-EDITING revision 0
 applied edit: {"tag":"Rename","args":{"old_key":"a","new_key":"A"}}
-EDITING revision 1
 applied edit: {"tag":"Rename","args":{"old_key":"c","new_key":"B"}}
-EDITING revision 2
 applied edit: {"tag":"ObjectApply","args":{"key":"B","op":{"tag":"ArrayApply","args":{"pos":1,"op":{"tag":"Set","args":{"old_value":false,"new_value":true}}}}}}
 result {
   "_id": "doc-1",
