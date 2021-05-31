@@ -59,7 +59,6 @@ import {
   ArrayApply,
   Set,
   Rename,
-  represent,
   Editor,
   create_editor
 } from "otis";
@@ -87,7 +86,7 @@ editor.send({
 
 editor.send({
   type: "edit",
-  operation: new ObjectApply("c", new ArrayApply(1, new Set(represent(false), represent(true)))),
+  operation: new ObjectApply("c", new ArrayApply(1, new Set(false, true))),
   base_revision: 1,
   sender_id: "sender-2"
 });
@@ -98,8 +97,8 @@ console.log("result", JSON.stringify(editor.context, null, 2));
 The output of this program is
 
 ```shell
-> otis@0.1.1 dev
-> ts-node example.ts
+> otis@0.1.2 dev
+> ts-node src/index.ts
 
 applied edit: {"tag":"Rename","args":{"old_key":"a","new_key":"A"}}
 applied edit: {"tag":"Rename","args":{"old_key":"c","new_key":"B"}}
