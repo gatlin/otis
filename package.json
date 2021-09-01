@@ -14,8 +14,8 @@
     "dev": "ts-node src/index.ts",
     "format": "prettierx --config ./.prettierrc --offset-ternary-expressions --write src/**/*.ts",
     "lint": "eslint . --fix --ext .ts",
-    "test": "tap --ts --no-coverage **/*.test.ts",
-    "coverage": "tap --ts **/*.test.ts",
+    "test": "tap --ts --no-coverage test/**/*.ts",
+    "coverage": "tap --ts test/**/*.ts",
     "prepublishOnly": "npm run build",
     "example": "ts-node example.ts"
   },
