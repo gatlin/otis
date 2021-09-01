@@ -52,65 +52,72 @@ interface Fix<T> {
   [fixed]: T;
 }
 declare const fixed: unique symbol;
-const _in = <F>(term: $<F,Fix<F>>): Fix<F> => (<Fix<F>>term);
-const out = <F>(term: Fix<F>): $<F,Fix<F>> => (<$<F,Fix<F>>>term);
+const _in = <F>(term: $<F, Fix<F>>): Fix<F> => <Fix<F>>term;
+const out = <F>(term: Fix<F>): $<F, Fix<F>> => <$<F, Fix<F>>>term;
 
 interface Functor<T> {
-  map: <A, B>(
-    f: (x: A) => B,
-    t: $<T, A>
-  ) => $<T, B>; }
+  map: <A, B>(f: (x: A) => B, t: $<T, A>) => $<T, B>;
+}
 
 // An f-algebra reduces functor values parameterized by a given carrier type
 // "A" to that particular type.
-type Algebra<F,A> = (fa: $<F,A>) => A;
+type Algebra<F, A> = (fa: $<F, A>) => A;
 
 /**
  * Produces "catamorphisms" (ie, evaluators / reducers / folds) for algebraic
  * functor types from a given functor algebra.
  */
-function cata<F,A>(
+function cata<F, A>(
   functor: Functor<F>,
-  transformer: Algebra<F,A>,
+  transformer: Algebra<F, A>,
   term: Fix<F>
 ): A {
   const extracted = out(term);
   const children_mapped = functor.map(
-    v => cata(functor, transformer, v),
-    extracted );
+    (v) => cata(functor, transformer, v),
+    extracted
+  );
   const transformed = transformer(children_mapped);
-  return transformed; }
+  return transformed;
+}
 
 const type_name = <T>(x: T | Array<unknown>): string => {
-  if (null === x) { return "null"; }
-  return ("object" === typeof x)
+  if (null === x) {
+    return "null";
+  }
+  return "object" === typeof x
     ? Array.isArray(x)
       ? "array"
       : "object"
     : typeof x;
 };
 
-const cmp = <A,B>(a: A, b: B): number => {
+const cmp = <A, B>(a: A, b: B): number => {
   if (type_name(a) !== type_name(b)) {
     return cmp(type_name(a), type_name(b));
   }
-
   else if ("number" === typeof a && "number" === typeof b) {
-    if (a < b) { return -1; }
-    if (a > b) { return 1 }
+    if (a < b) {
+      return -1;
+    }
+    if (a > b) {
+      return 1;
+    }
     return 0;
   }
-
   else if ("string" === typeof a && "string" === typeof b) {
     return a.localeCompare(b);
   }
-
   else if (Array.isArray(a) && Array.isArray(b)) {
     let x = cmp(a.length, b.length);
-    if (0 !== x) { return x; }
+    if (0 !== x) {
+      return x;
+    }
     for (let i = 0; i < a.length; i++) {
       x = cmp(a[i], b[i]);
-      if (0 !== x) { return x; }
+      if (0 !== x) {
+        return x;
+      }
     }
     return 0;
   }
@@ -126,8 +133,10 @@ function concat2<T = string | Array<unknown>>(a: T, b: T): T {
   else if (Array.isArray(a) && Array.isArray(b)) {
     result = a.concat(b);
   }
-  else { throw new Error("Error in concat2"); }
-  return result as (typeof a);
+  else {
+    throw new Error("Error in concat2");
+  }
+  return result as typeof a;
 }
 
 function concat3<T = string | Array<unknown>>(a: T, b: T, c: T): T {
@@ -138,8 +147,10 @@ function concat3<T = string | Array<unknown>>(a: T, b: T, c: T): T {
   else if (Array.isArray(a)) {
     result = a.concat(b).concat(c);
   }
-  else { throw new Error("Error in concat3"); }
-  return result as (typeof a);
+  else {
+    throw new Error("Error in concat3");
+  }
+  return result as typeof a;
 }
 
 function concat4<T = unknown>(a: T, b: T, c: T, d: T): T {
@@ -150,13 +161,15 @@ function concat4<T = unknown>(a: T, b: T, c: T, d: T): T {
   else if (Array.isArray(a)) {
     result = a.concat(b).concat(c).concat(d);
   }
-  else { throw new Error("Error in concat4"); }
-  return result as (typeof a);
+  else {
+    throw new Error("Error in concat4");
+  }
+  return result as typeof a;
 }
 
 function map_index(pos: any, move_op: any): any {
   if (pos >= move_op.pos && pos < move_op.pos + move_op.count) {
-    return (pos - move_op.pos) + move_op.new_pos; // within the move
+    return pos - move_op.pos + move_op.new_pos; // within the move
   }
   // before the move
   if (pos < move_op.pos && pos < move_op.new_pos) {
@@ -172,11 +185,11 @@ function map_index(pos: any, move_op: any): any {
   if (pos > move_op.pos) {
     return pos - move_op.count; // a moved around by from left to right
   }
-  throw "unhandled problem"
+  throw "unhandled problem";
 }
 
 function elem(seq: any, pos: any): any {
-  if (typeof seq === 'string') {
+  if (typeof seq === "string") {
     return seq.charAt(pos);
   }
   else {
@@ -184,10 +197,11 @@ function elem(seq: any, pos: any): any {
   }
 }
 
-function unelem(elem: any, seq : any ): any {
-  if (typeof seq === 'string') {
+function unelem(elem: any, seq: any): any {
+  if (typeof seq === "string") {
     return elem;
-  } else {
+  }
+  else {
     return [elem];
   }
 }
