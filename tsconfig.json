@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2015",
+    "target": "es2019",
     "module": "commonjs",
     "moduleResolution": "node",
     "declaration": true,
@@ -12,13 +12,17 @@
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
-    "target": "es2019",
     "sourceMap": true,
     "outDir": "./dist/commonjs",
     "baseUrl": "./",
     "incremental": true,
     "esModuleInterop": true
   },
-  "include": ["./src/**/*"],
-  "exclude": ["./node_modules/**/*"]
+  "include": ["./src/**/*.ts"],
+  "exclude": [
+    "./node_modules/**/*",
+    "./dist/**/*",
+    "./**/*.test.ts",
+    "example.ts"
+  ]
 }
