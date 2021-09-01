@@ -16,8 +16,7 @@
     "lint": "eslint . --fix --ext .ts",
     "test": "tap --ts --no-coverage test/**/*.ts",
     "coverage": "tap --ts test/**/*.ts",
-    "prepublishOnly": "npm run build",
-    "example": "ts-node example.ts"
+    "prepublishOnly": "npm run build"
   },
   "author": "",
   "license": "ISC",
