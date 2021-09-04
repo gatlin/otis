@@ -1072,8 +1072,8 @@ class ObjectApply implements Operation {
       }
       const opa = this.op.rebase(other.op);
       const opb = other.op.rebase(this.op);
-      console.log("objectapply:opa", JSON.stringify(opa,null,2));
-      console.log("objectapply:opb", JSON.stringify(opb,null,2));
+      console.log("objectapply:opa", JSON.stringify(opa, null, 2));
+      console.log("objectapply:opb", JSON.stringify(opb, null, 2));
       if (opa && opb) {
         return [
           opa instanceof NoOp ? new NoOp() : new ObjectApply(this.key, opa[1]),
