@@ -1,9 +1,15 @@
-import { _, Algebra, Fix, _in, Functor, cata } from "./util";
+import { _in, cata } from "./util";
+import type { _, Algebra, Fix, Functor } from "./util";
 
 type Atom = string | number | boolean | null;
 type Obj<A> = { [key: string]: A };
 type Arr<A> = { [idx: number]: A };
 type ValueF<A> = Atom | Obj<A> | Arr<A>;
+
+type Value = Fix<ValueF<_>>;
+const atom = (a: Atom): Value => _in(a);
+const obj = (o: { [key: string]: Value }): Value => _in(o);
+const arr = (a: { [idx: number]: Value }): Value => _in(a);
 
 const ValueFunctor: Functor<ValueF<_>> = {
   map: <A, B>(f: (x: A) => B, val: ValueF<A>) => {
@@ -28,11 +34,6 @@ const ValueFunctor: Functor<ValueF<_>> = {
     }
   }
 };
-
-type Value = Fix<ValueF<_>>;
-const atom = (a: Atom): Value => _in(a);
-const obj = (o: { [key: string]: Value }): Value => _in(o);
-const arr = (a: { [idx: number]: Value }): Value => _in(a);
 
 const ValueJsonAlg: Algebra<ValueF<string>, string> = (val) => {
   if ("object" === typeof val) {
@@ -79,12 +80,12 @@ const represent = (datum: unknown): Value => {
   }
   else {
     switch (typeof datum) {
-    case "string":
-    case "number":
-    case "boolean":
-      return atom(datum as Atom);
-    default:
-      break;
+      case "string":
+      case "number":
+      case "boolean":
+        return atom(datum as Atom);
+      default:
+        break;
     }
   }
   throw new Error(`Cannot build representation of ${datum}`);
@@ -92,15 +93,6 @@ const represent = (datum: unknown): Value => {
 
 const json_to_value = (jsons: string): Value => represent(JSON.parse(jsons));
 
-export {
-  Value,
-  Arr,
-  Atom,
-  Obj,
-  atom,
-  obj,
-  arr,
-  value_to_json,
-  json_to_value,
-  represent
-};
+export type { Value, Arr, Atom, Obj };
+
+export { atom, obj, arr, value_to_json, json_to_value, represent };

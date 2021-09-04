@@ -1,5 +1,5 @@
-import { Value, arr, obj, atom, represent } from "./value";
-
+import { arr, obj, atom, represent } from "./value";
+import type { Value } from "./value";
 import {
   cmp,
   out,
@@ -44,30 +44,30 @@ function serialize(op: Operation): { tag: string; args: any } {
 function deserialize(value: { tag: string; args: any }): Operation {
   const { tag, args } = value;
   switch (tag) {
-  case "NoOp":
-    return new NoOp();
-  case "Splice":
-    return new Splice(args.pos, args.old_value, args.new_value);
-  case "List":
-    return new List(args.ops.map(deserialize));
-  case "Move":
-    return new Move(args.pos, args.count, args.new_pos);
-  case "Set":
-    return new Set(args.old_value, args.new_value);
-  case "Put":
-    return new Put(args.key, args.value);
-  case "Map":
-    return new Map(deserialize(args.op));
-  case "Remove":
-    return new Remove(args.key, args.old_value);
-  case "Rename":
-    return new Rename(args.old_value, args.new_value);
-  case "ArrayApply":
-    return new ArrayApply(args.pos, deserialize(args.op));
-  case "ObjectApply":
-    return new ObjectApply(args.key, deserialize(args.op));
-  default:
-    throw new Error(`Invalid serialized operation: ${value}`);
+    case "NoOp":
+      return new NoOp();
+    case "Splice":
+      return new Splice(args.pos, args.old_value, args.new_value);
+    case "List":
+      return new List(args.ops.map(deserialize));
+    case "Move":
+      return new Move(args.pos, args.count, args.new_pos);
+    case "Set":
+      return new Set(args.old_value, args.new_value);
+    case "Put":
+      return new Put(args.key, args.value);
+    case "Map":
+      return new Map(deserialize(args.op));
+    case "Remove":
+      return new Remove(args.key, args.old_value);
+    case "Rename":
+      return new Rename(args.old_value, args.new_value);
+    case "ArrayApply":
+      return new ArrayApply(args.pos, deserialize(args.op));
+    case "ObjectApply":
+      return new ObjectApply(args.key, deserialize(args.op));
+    default:
+      throw new Error(`Invalid serialized operation: ${value}`);
   }
 }
 
@@ -1072,10 +1072,12 @@ class ObjectApply implements Operation {
       }
       const opa = this.op.rebase(other.op);
       const opb = other.op.rebase(this.op);
+      console.log("objectapply:opa", JSON.stringify(opa,null,2));
+      console.log("objectapply:opb", JSON.stringify(opb,null,2));
       if (opa && opb) {
         return [
-          opa instanceof NoOp ? new NoOp() : new ObjectApply(this.key, opa[0]),
-          opb instanceof NoOp ? new NoOp() : new ObjectApply(other.key, opb[1])
+          opa instanceof NoOp ? new NoOp() : new ObjectApply(this.key, opa[1]),
+          opb instanceof NoOp ? new NoOp() : new ObjectApply(other.key, opb[0])
         ];
       }
     }
@@ -1083,8 +1085,8 @@ class ObjectApply implements Operation {
   }
 }
 
+export type { Operation };
 export {
-  Operation,
   serialize,
   deserialize,
   NoOp,
