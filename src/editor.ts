@@ -8,12 +8,12 @@ import {
   state,
   transition,
   immediate,
-  interpret,
-  Service
+  interpret
 } from "robot3";
+import type { Service } from "robot3";
 
 import type { Operation } from "./operations";
-import { List, NoOp, serialize } from "./operations";
+import { NoOp } from "./operations";
 
 import type { Value } from "./value";
 import { represent } from "./value";
@@ -38,7 +38,7 @@ const editorMachine = createMachine(
         "edit",
         "EDITING",
         reduce((ctx: EditorContext, evt: Edit & { type: "edit" }) => {
-          const { operation, base_revision, sender_id } = evt;
+          const { operation, base_revision } = evt;
           const { _revision, _history, _body } = ctx;
           if (base_revision > _revision) {
             throw new Error(
@@ -55,12 +55,11 @@ const editorMachine = createMachine(
           if (!rebased) {
             throw new Error("error rebasing");
           }
-          const [rebase_root_prime, operation_prime] = rebased;
           return {
             ...ctx,
-            _body: operation_prime.apply(_body),
+            _body: rebased[1].apply(_body),
             _revision: _revision + 1,
-            _history: [operation_prime, ..._history]
+            _history: [rebased[1], ..._history]
           };
         })
       )

@@ -61,7 +61,9 @@ interface Functor<T> {
 
 // An f-algebra reduces functor values parameterized by a given carrier type
 // "A" to that particular type.
-type Algebra<F, A> = (fa: $<F, A>) => A;
+interface Algebra<F, A> {
+  (fa: $<F, A>): A;
+}
 
 /**
  * Produces "catamorphisms" (ie, evaluators / reducers / folds) for algebraic
@@ -214,11 +216,9 @@ function shallow_clone(doc: any): any {
   return d;
 }
 
+export type { _, Algebra, Fix, Functor };
+
 export {
-  _,
-  Algebra,
-  Fix,
-  Functor,
   cata,
   _in,
   out,
